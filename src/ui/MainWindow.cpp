@@ -8,6 +8,11 @@
 #include <QMessageBox>
 #include <QTabWidget>
 #include <QGroupBox>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QTimer>
+#include <QBrush>
+#include <QColor>
 
 namespace ui {
 
@@ -72,7 +77,11 @@ void MainWindow::setupUI() {
 
     // Containers tab
     QWidget* containersTab = new QWidget();
+    QVBoxLayout* containersLayout = new QVBoxLayout(containersTab);
     setupContainerView();
+    if (containerTable_) {
+        containersLayout->addWidget(containerTable_);
+    }
     tabs->addTab(containersTab, "Containers");
 
     // Network tab
@@ -168,7 +177,33 @@ void MainWindow::setupDashboard() {
 }
 
 void MainWindow::setupContainerView() {
-    // TODO: Implement container table view
+    // Create container table
+    containerTable_ = new QTableWidget(this);
+
+    // Set up columns
+    containerTable_->setColumnCount(6);
+    QStringList headers;
+    headers << "Name" << "Image" << "State" << "Status" << "Ports" << "ID";
+    containerTable_->setHorizontalHeaderLabels(headers);
+
+    // Configure table behavior
+    containerTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    containerTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+    containerTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    containerTable_->setSortingEnabled(true);
+
+    // Set column widths
+    containerTable_->setColumnWidth(0, 150); // Name
+    containerTable_->setColumnWidth(1, 200); // Image
+    containerTable_->setColumnWidth(2, 80);  // State
+    containerTable_->setColumnWidth(3, 150); // Status
+    containerTable_->setColumnWidth(4, 120); // Ports
+    containerTable_->setColumnWidth(5, 120); // ID
+
+    // Stretch last column
+    containerTable_->horizontalHeader()->setStretchLastSection(true);
+
+    LOG_INFO("Container table view initialized");
 }
 
 void MainWindow::setupNetworkView() {
@@ -201,15 +236,158 @@ void MainWindow::onRefreshContainers() {
 }
 
 void MainWindow::onStartContainer() {
-    // TODO: Implement start container
+    if (!containerTable_) return;
+
+    // Get selected row
+    QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
+    if (selected.isEmpty()) {
+        showInfo("Please select a container to start");
+        return;
+    }
+
+    // Get container ID from first column's user data
+    int row = selected[0]->row();
+    QTableWidgetItem* nameItem = containerTable_->item(row, 0);
+    if (!nameItem) return;
+
+    QString containerId = nameItem->data(Qt::UserRole).toString();
+    QString containerName = nameItem->text();
+
+    if (containerId.isEmpty()) {
+        showError("Invalid container ID");
+        return;
+    }
+
+    LOG_INFO("Starting container: " + containerName.toStdString());
+    statusBar()->showMessage("Starting container " + containerName + "...");
+
+    try {
+        // Start the container
+        bool success = dockerClient_->startContainer(containerId.toStdString());
+
+        if (success) {
+            LOG_INFO("Container started successfully: " + containerName.toStdString());
+            statusBar()->showMessage("Container " + containerName + " started", 3000);
+            showSuccess("Container '" + containerName.toStdString() + "' started successfully");
+
+            // Refresh the container list to show updated state
+            QTimer::singleShot(500, this, &MainWindow::onRefreshContainers);
+        } else {
+            LOG_ERROR("Failed to start container: " + containerName.toStdString());
+            showError("Failed to start container '" + containerName.toStdString() + "'");
+            statusBar()->showMessage("Failed to start container", 3000);
+        }
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Exception starting container: ") + e.what());
+        showError("Error starting container: " + std::string(e.what()));
+        statusBar()->showMessage("Error", 3000);
+    }
 }
 
 void MainWindow::onStopContainer() {
-    // TODO: Implement stop container
+    if (!containerTable_) return;
+
+    // Get selected row
+    QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
+    if (selected.isEmpty()) {
+        showInfo("Please select a container to stop");
+        return;
+    }
+
+    // Get container ID from first column's user data
+    int row = selected[0]->row();
+    QTableWidgetItem* nameItem = containerTable_->item(row, 0);
+    if (!nameItem) return;
+
+    QString containerId = nameItem->data(Qt::UserRole).toString();
+    QString containerName = nameItem->text();
+
+    if (containerId.isEmpty()) {
+        showError("Invalid container ID");
+        return;
+    }
+
+    // Confirm before stopping
+    if (!confirmAction("Are you sure you want to stop container '" + containerName.toStdString() + "'?")) {
+        return;
+    }
+
+    LOG_INFO("Stopping container: " + containerName.toStdString());
+    statusBar()->showMessage("Stopping container " + containerName + "...");
+
+    try {
+        // Stop the container (10 second timeout)
+        bool success = dockerClient_->stopContainer(containerId.toStdString(), 10);
+
+        if (success) {
+            LOG_INFO("Container stopped successfully: " + containerName.toStdString());
+            statusBar()->showMessage("Container " + containerName + " stopped", 3000);
+            showSuccess("Container '" + containerName.toStdString() + "' stopped successfully");
+
+            // Refresh the container list to show updated state
+            QTimer::singleShot(500, this, &MainWindow::onRefreshContainers);
+        } else {
+            LOG_ERROR("Failed to stop container: " + containerName.toStdString());
+            showError("Failed to stop container '" + containerName.toStdString() + "'");
+            statusBar()->showMessage("Failed to stop container", 3000);
+        }
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Exception stopping container: ") + e.what());
+        showError("Error stopping container: " + std::string(e.what()));
+        statusBar()->showMessage("Error", 3000);
+    }
 }
 
 void MainWindow::onRestartContainer() {
-    // TODO: Implement restart container
+    if (!containerTable_) return;
+
+    // Get selected row
+    QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
+    if (selected.isEmpty()) {
+        showInfo("Please select a container to restart");
+        return;
+    }
+
+    // Get container ID from first column's user data
+    int row = selected[0]->row();
+    QTableWidgetItem* nameItem = containerTable_->item(row, 0);
+    if (!nameItem) return;
+
+    QString containerId = nameItem->data(Qt::UserRole).toString();
+    QString containerName = nameItem->text();
+
+    if (containerId.isEmpty()) {
+        showError("Invalid container ID");
+        return;
+    }
+
+    LOG_INFO("Restarting container: " + containerName.toStdString());
+    statusBar()->showMessage("Restarting container " + containerName + "...");
+
+    try {
+        // Restart the container
+        bool success = dockerClient_->restartContainer(containerId.toStdString());
+
+        if (success) {
+            LOG_INFO("Container restarted successfully: " + containerName.toStdString());
+            statusBar()->showMessage("Container " + containerName + " restarted", 3000);
+            showSuccess("Container '" + containerName.toStdString() + "' restarted successfully");
+
+            // Refresh the container list to show updated state
+            QTimer::singleShot(1000, this, &MainWindow::onRefreshContainers);
+        } else {
+            LOG_ERROR("Failed to restart container: " + containerName.toStdString());
+            showError("Failed to restart container '" + containerName.toStdString() + "'");
+            statusBar()->showMessage("Failed to restart container", 3000);
+        }
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Exception restarting container: ") + e.what());
+        showError("Error restarting container: " + std::string(e.what()));
+        statusBar()->showMessage("Error", 3000);
+    }
 }
 
 void MainWindow::onViewLogs() {
@@ -278,7 +456,78 @@ void MainWindow::updateDashboard() {
 }
 
 void MainWindow::updateContainerTable() {
-    // TODO: Update container table with current data
+    if (!containerTable_) return;
+
+    LOG_INFO("Updating container table with " + std::to_string(containers_.size()) + " containers");
+
+    // Disable sorting while updating
+    containerTable_->setSortingEnabled(false);
+
+    // Clear existing rows
+    containerTable_->setRowCount(0);
+
+    // Add rows for each container
+    int row = 0;
+    for (const auto& container : containers_) {
+        containerTable_->insertRow(row);
+
+        // Name
+        QTableWidgetItem* nameItem = new QTableWidgetItem(QString::fromStdString(container.getName()));
+        containerTable_->setItem(row, 0, nameItem);
+
+        // Image
+        QString imageStr = QString::fromStdString(container.getImage());
+        QTableWidgetItem* imageItem = new QTableWidgetItem(imageStr);
+        containerTable_->setItem(row, 1, imageItem);
+
+        // State
+        QString stateStr = QString::fromStdString(container.getStateString());
+        QTableWidgetItem* stateItem = new QTableWidgetItem(stateStr);
+
+        // Color code by state
+        if (container.isRunning()) {
+            stateItem->setForeground(QBrush(QColor(0, 150, 0))); // Green
+        } else {
+            stateItem->setForeground(QBrush(QColor(200, 0, 0))); // Red
+        }
+        containerTable_->setItem(row, 2, stateItem);
+
+        // Status
+        QTableWidgetItem* statusItem = new QTableWidgetItem(QString::fromStdString(container.getStatus()));
+        containerTable_->setItem(row, 3, statusItem);
+
+        // Ports
+        QString portsStr;
+        auto ports = container.getPorts();
+        for (size_t i = 0; i < ports.size(); ++i) {
+            if (i > 0) portsStr += ", ";
+            if (ports[i].hostPort > 0) {
+                portsStr += QString::number(ports[i].hostPort) + "->" + QString::number(ports[i].containerPort);
+            } else {
+                portsStr += QString::number(ports[i].containerPort);
+            }
+        }
+        QTableWidgetItem* portsItem = new QTableWidgetItem(portsStr);
+        containerTable_->setItem(row, 4, portsItem);
+
+        // ID (short version)
+        QString idStr = QString::fromStdString(container.getId());
+        if (idStr.length() > 12) {
+            idStr = idStr.left(12);
+        }
+        QTableWidgetItem* idItem = new QTableWidgetItem(idStr);
+        containerTable_->setItem(row, 5, idItem);
+
+        // Store full ID in row data for later retrieval
+        nameItem->setData(Qt::UserRole, QString::fromStdString(container.getId()));
+
+        row++;
+    }
+
+    // Re-enable sorting
+    containerTable_->setSortingEnabled(true);
+
+    LOG_INFO("Container table updated successfully");
 }
 
 void MainWindow::updateIssuesList() {
