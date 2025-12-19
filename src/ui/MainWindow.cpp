@@ -1,5 +1,6 @@
 #include "ui/MainWindow.h"
 #include "utils/Logger.h"
+#include <QApplication>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMenuBar>

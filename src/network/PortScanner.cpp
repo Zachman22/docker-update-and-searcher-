@@ -8,8 +8,10 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <tlhelp32.h>
+#include <psapi.h>
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "psapi.lib")
 #else
 #include <fstream>
 #include <cstring>

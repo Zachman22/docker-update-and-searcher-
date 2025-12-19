@@ -20,8 +20,8 @@ FetchContent_MakeAvailable(nlohmann_json)
 # Find Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 
-# Find SQLite3
-find_package(SQLite3 REQUIRED)
+# Find SQLite3 (using unofficial package from vcpkg)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 
 # Find CURL
 find_package(CURL REQUIRED)
@@ -70,7 +70,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Core
     Qt6::Widgets
     Qt6::Network
-    SQLite::SQLite3
+    unofficial::sqlite3::sqlite3
     CURL::libcurl
     nlohmann_json::nlohmann_json
 )

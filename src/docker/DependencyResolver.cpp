@@ -557,8 +557,12 @@ bool DependencyResolver::pullMissingImages(const std::string& containerId) {
 
             std::string response;
             std::string encodedImage = dep.details;
-            // URL encode the image name
-            std::replace(encodedImage.begin(), encodedImage.end(), '/', '%2F');
+            // URL encode the image name (replace / with %2F)
+            size_t pos = 0;
+            while ((pos = encodedImage.find('/', pos)) != std::string::npos) {
+                encodedImage.replace(pos, 1, "%2F");
+                pos += 3;
+            }
 
 #ifdef _WIN32
             std::string url = "http://localhost/v1.41/images/create?fromImage=" + encodedImage;

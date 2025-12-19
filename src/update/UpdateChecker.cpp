@@ -240,8 +240,17 @@ bool UpdateChecker::performUpdate(const UpdateInfo& updateInfo, bool backupFirst
 
     std::string imageWithTag = imageName + ":" + updateInfo.latestTag;
     std::string encodedImage = imageWithTag;
-    std::replace(encodedImage.begin(), encodedImage.end(), '/', '%2F');
-    std::replace(encodedImage.begin(), encodedImage.end(), ':', '%3A');
+    // URL encode the image name
+    size_t pos = 0;
+    while ((pos = encodedImage.find('/', pos)) != std::string::npos) {
+        encodedImage.replace(pos, 1, "%2F");
+        pos += 3;
+    }
+    pos = 0;
+    while ((pos = encodedImage.find(':', pos)) != std::string::npos) {
+        encodedImage.replace(pos, 1, "%3A");
+        pos += 3;
+    }
 
 #ifdef _WIN32
     std::string url = "http://localhost/v1.41/images/create?fromImage=" + encodedImage;

@@ -5,7 +5,11 @@
       "Bash(git push:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(cmake:*)",
+      "Bash(findstr:*)",
+      "Bash(Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue)",
+      "Bash(New-Item -ItemType Directory -Path build)"
     ]
   }
 }
