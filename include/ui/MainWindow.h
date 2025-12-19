@@ -74,6 +74,7 @@ private:
     void showSuccess(const std::string& message);
     void showInfo(const std::string& message);
     bool confirmAction(const std::string& message);
+    QWidget* createDashboardWidget();
 
     // Core components
     std::shared_ptr<docker::DockerClient> dockerClient_;
