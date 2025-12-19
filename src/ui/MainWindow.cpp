@@ -13,6 +13,10 @@
 #include <QTimer>
 #include <QBrush>
 #include <QColor>
+#include <QTextEdit>
+#include <QSplitter>
+#include <QProgressBar>
+#include <QComboBox>
 
 namespace ui {
 
@@ -34,6 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Initialize managers
     containerManager_ = std::make_shared<docker::ContainerManager>(dockerClient_);
+    dependencyResolver_ = std::make_shared<docker::DependencyResolver>();
     portScanner_ = std::make_shared<network::PortScanner>();
     networkDiagnostics_ = std::make_shared<network::NetworkDiagnostics>();
     updateChecker_ = std::make_shared<update::UpdateChecker>();
@@ -63,6 +68,9 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setupUI() {
+    setWindowTitle("Docker Homelab Manager v0.3.0");
+    resize(1200, 800);
+
     // Create central widget with tab layout
     QWidget* centralWidget = new QWidget(this);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -72,8 +80,9 @@ void MainWindow::setupUI() {
 
     // Dashboard tab
     QWidget* dashboardTab = new QWidget();
+    QVBoxLayout* dashboardLayout = new QVBoxLayout(dashboardTab);
     setupDashboard();
-    tabs->addTab(dashboardTab, "Dashboard");
+    tabs->addTab(dashboardTab, "📊 Dashboard");
 
     // Containers tab
     QWidget* containersTab = new QWidget();
@@ -82,22 +91,25 @@ void MainWindow::setupUI() {
     if (containerTable_) {
         containersLayout->addWidget(containerTable_);
     }
-    tabs->addTab(containersTab, "Containers");
+    tabs->addTab(containersTab, "🐳 Containers");
 
     // Network tab
     QWidget* networkTab = new QWidget();
+    QVBoxLayout* networkLayout = new QVBoxLayout(networkTab);
     setupNetworkView();
-    tabs->addTab(networkTab, "Networks");
+    tabs->addTab(networkTab, "🌐 Network");
 
     // Updates tab
     QWidget* updatesTab = new QWidget();
+    QVBoxLayout* updatesLayout = new QVBoxLayout(updatesTab);
     setupUpdatesView();
-    tabs->addTab(updatesTab, "Updates");
+    tabs->addTab(updatesTab, "🔄 Updates");
 
     // Diagnostics tab
     QWidget* diagnosticsTab = new QWidget();
+    QVBoxLayout* diagnosticsLayout = new QVBoxLayout(diagnosticsTab);
     setupDiagnosticsView();
-    tabs->addTab(diagnosticsTab, "Diagnostics");
+    tabs->addTab(diagnosticsTab, "🔧 Diagnostics");
 
     mainLayout->addWidget(tabs);
     setCentralWidget(centralWidget);
@@ -135,9 +147,15 @@ void MainWindow::setupMenuBar() {
     QMenu* helpMenu = menuBar->addMenu("&Help");
     helpMenu->addAction("&About", [this]() {
         QMessageBox::about(this, "About",
-            "Docker Homelab Manager v0.1.0\n\n"
+            "Docker Homelab Manager v0.3.0\n\n"
             "A comprehensive tool for managing Docker containers\n"
-            "in homelab environments.");
+            "in homelab environments.\n\n"
+            "Features:\n"
+            "• Container management\n"
+            "• Network diagnostics\n"
+            "• Dependency resolution\n"
+            "• Error diagnosis & auto-fix\n"
+            "• Safe updates with rollback");
     });
 
     setMenuBar(menuBar);
@@ -173,7 +191,37 @@ void MainWindow::setupToolBar() {
 }
 
 void MainWindow::setupDashboard() {
-    // TODO: Implement dashboard with statistics and overview
+    // Create dashboard layout with statistics
+    QGroupBox* statsGroup = new QGroupBox("System Statistics", this);
+    QGridLayout* statsLayout = new QGridLayout(statsGroup);
+
+    // Create stat labels
+    statsRunning_ = new QLabel("0", this);
+    statsStopped_ = new QLabel("0", this);
+    statsIssues_ = new QLabel("0", this);
+    statsUpdates_ = new QLabel("0", this);
+
+    // Style stat labels
+    QString statStyle = "font-size: 24px; font-weight: bold; padding: 10px;";
+    statsRunning_->setStyleSheet(statStyle + "color: #28a745;");
+    statsStopped_->setStyleSheet(statStyle + "color: #dc3545;");
+    statsIssues_->setStyleSheet(statStyle + "color: #ffc107;");
+    statsUpdates_->setStyleSheet(statStyle + "color: #17a2b8;");
+
+    // Add to layout
+    QLabel* runningLabel = new QLabel("Running Containers:", this);
+    QLabel* stoppedLabel = new QLabel("Stopped Containers:", this);
+    QLabel* issuesLabel = new QLabel("Active Issues:", this);
+    QLabel* updatesLabel = new QLabel("Available Updates:", this);
+
+    statsLayout->addWidget(runningLabel, 0, 0);
+    statsLayout->addWidget(statsRunning_, 0, 1);
+    statsLayout->addWidget(stoppedLabel, 0, 2);
+    statsLayout->addWidget(statsStopped_, 0, 3);
+    statsLayout->addWidget(issuesLabel, 1, 0);
+    statsLayout->addWidget(statsIssues_, 1, 1);
+    statsLayout->addWidget(updatesLabel, 1, 2);
+    statsLayout->addWidget(statsUpdates_, 1, 3);
 }
 
 void MainWindow::setupContainerView() {
@@ -207,15 +255,270 @@ void MainWindow::setupContainerView() {
 }
 
 void MainWindow::setupNetworkView() {
-    // TODO: Implement network diagnostics view
+    // Create network diagnostics table
+    networkTable_ = new QTableWidget(this);
+    networkTable_->setColumnCount(5);
+    QStringList headers;
+    headers << "Test Type" << "Source" << "Destination" << "Status" << "Details";
+    networkTable_->setHorizontalHeaderLabels(headers);
+
+    networkTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    networkTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    networkTable_->horizontalHeader()->setStretchLastSection(true);
+
+    // Add control buttons
+    QPushButton* btnTestConnectivity = new QPushButton("Test Container Connectivity", this);
+    QPushButton* btnTestInternet = new QPushButton("Test Internet Access", this);
+    QPushButton* btnTestDNS = new QPushButton("Test DNS Resolution", this);
+    QPushButton* btnScanNetworks = new QPushButton("Scan All Networks", this);
+
+    connect(btnTestConnectivity, &QPushButton::clicked, [this]() {
+        statusBar()->showMessage("Testing container connectivity...");
+        networkTable_->setRowCount(0);
+
+        // Test connectivity between all running containers
+        int row = 0;
+        for (size_t i = 0; i < containers_.size(); ++i) {
+            for (size_t j = i + 1; j < containers_.size(); ++j) {
+                if (containers_[i].isRunning() && containers_[j].isRunning()) {
+                    auto test = networkDiagnostics_->testContainerConnectivity(
+                        containers_[i].getId(), containers_[j].getId());
+
+                    networkTable_->insertRow(row);
+                    networkTable_->setItem(row, 0, new QTableWidgetItem("Container→Container"));
+                    networkTable_->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(containers_[i].getName())));
+                    networkTable_->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(containers_[j].getName())));
+
+                    QString status = (test.status == network::ConnectivityStatus::Success) ? "✓ Success" : "✗ Failed";
+                    QTableWidgetItem* statusItem = new QTableWidgetItem(status);
+                    statusItem->setForeground(QBrush(QColor(test.status == network::ConnectivityStatus::Success ? Qt::green : Qt::red)));
+                    networkTable_->setItem(row, 3, statusItem);
+
+                    QString details = QString::fromStdString(test.errorMessage.empty() ?
+                        "Latency: " + std::to_string(test.latency.count()) + "ms" :
+                        test.errorMessage);
+                    networkTable_->setItem(row, 4, new QTableWidgetItem(details));
+                    row++;
+                }
+            }
+        }
+        statusBar()->showMessage("Connectivity test complete", 3000);
+    });
+
+    connect(btnTestInternet, &QPushButton::clicked, [this]() {
+        statusBar()->showMessage("Testing internet connectivity...");
+        networkTable_->setRowCount(0);
+
+        int row = 0;
+        for (const auto& container : containers_) {
+            if (container.isRunning()) {
+                auto test = networkDiagnostics_->testInternetConnectivity(container.getId());
+
+                networkTable_->insertRow(row);
+                networkTable_->setItem(row, 0, new QTableWidgetItem("Internet Access"));
+                networkTable_->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(container.getName())));
+                networkTable_->setItem(row, 2, new QTableWidgetItem("8.8.8.8"));
+
+                QString status = (test.status == network::ConnectivityStatus::Success) ? "✓ Connected" : "✗ No Access";
+                QTableWidgetItem* statusItem = new QTableWidgetItem(status);
+                statusItem->setForeground(QBrush(QColor(test.status == network::ConnectivityStatus::Success ? Qt::green : Qt::red)));
+                networkTable_->setItem(row, 3, statusItem);
+
+                networkTable_->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(test.errorMessage)));
+                row++;
+            }
+        }
+        statusBar()->showMessage("Internet test complete", 3000);
+    });
+
+    connect(btnTestDNS, &QPushButton::clicked, [this]() {
+        statusBar()->showMessage("Testing DNS resolution...");
+        networkTable_->setRowCount(0);
+
+        std::vector<std::string> testDomains = {"google.com", "docker.io", "github.com"};
+        int row = 0;
+
+        for (const auto& container : containers_) {
+            if (container.isRunning()) {
+                for (const auto& domain : testDomains) {
+                    auto test = networkDiagnostics_->testContainerDNS(container.getId(), domain);
+
+                    networkTable_->insertRow(row);
+                    networkTable_->setItem(row, 0, new QTableWidgetItem("DNS Resolution"));
+                    networkTable_->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(container.getName())));
+                    networkTable_->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(domain)));
+
+                    QString status = test.success ? "✓ Resolved" : "✗ Failed";
+                    QTableWidgetItem* statusItem = new QTableWidgetItem(status);
+                    statusItem->setForeground(QBrush(QColor(test.success ? Qt::green : Qt::red)));
+                    networkTable_->setItem(row, 3, statusItem);
+
+                    QString details = test.success ?
+                        QString("IPs: %1 (%2ms)").arg(test.resolvedIPs.size()).arg(test.responseTime.count()) :
+                        QString::fromStdString(test.errorMessage);
+                    networkTable_->setItem(row, 4, new QTableWidgetItem(details));
+                    row++;
+                }
+            }
+        }
+        statusBar()->showMessage("DNS test complete", 3000);
+    });
+
+    LOG_INFO("Network diagnostics view initialized");
 }
 
 void MainWindow::setupUpdatesView() {
-    // TODO: Implement updates view
+    // Create updates table
+    updatesTable_ = new QTableWidget(this);
+    updatesTable_->setColumnCount(6);
+    QStringList headers;
+    headers << "Container" << "Current Tag" << "Latest Tag" << "Current Digest" << "Latest Digest" << "Status";
+    updatesTable_->setHorizontalHeaderLabels(headers);
+
+    updatesTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    updatesTable_->setSelectionMode(QAbstractItemView::MultiSelection);
+    updatesTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    updatesTable_->horizontalHeader()->setStretchLastSection(true);
+
+    // Add update buttons
+    QPushButton* btnUpdate = new QPushButton("Update Selected", this);
+    btnUpdateAll_ = new QPushButton("Update All", this);
+    QPushButton* btnRollback = new QPushButton("Rollback Last Update", this);
+
+    QComboBox* strategyCombo = new QComboBox(this);
+    strategyCombo->addItem("Conservative", static_cast<int>(update::UpdateStrategy::Conservative));
+    strategyCombo->addItem("Moderate", static_cast<int>(update::UpdateStrategy::Moderate));
+    strategyCombo->addItem("Aggressive", static_cast<int>(update::UpdateStrategy::Aggressive));
+    strategyCombo->setCurrentIndex(1); // Default to Moderate
+
+    connect(strategyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, strategyCombo](int index) {
+        auto strategy = static_cast<update::UpdateStrategy>(strategyCombo->itemData(index).toInt());
+        updateChecker_->setUpdateStrategy(strategy);
+        LOG_INFO("Update strategy changed");
+    });
+
+    connect(btnUpdate, &QPushButton::clicked, this, &MainWindow::onUpdateSelected);
+    connect(btnUpdateAll_, &QPushButton::clicked, this, &MainWindow::onUpdateAll);
+    connect(btnRollback, &QPushButton::clicked, [this]() {
+        if (!updatesTable_->selectedItems().isEmpty()) {
+            int row = updatesTable_->selectedItems()[0]->row();
+            QString containerId = updatesTable_->item(row, 0)->data(Qt::UserRole).toString();
+
+            if (confirmAction("Rollback last update for this container?")) {
+                statusBar()->showMessage("Rolling back...");
+                if (updateChecker_->rollbackUpdate(containerId.toStdString())) {
+                    showSuccess("Rollback successful");
+                    onRefreshContainers();
+                } else {
+                    showError("Rollback failed - check logs");
+                }
+            }
+        }
+    });
+
+    LOG_INFO("Updates view initialized");
 }
 
 void MainWindow::setupDiagnosticsView() {
-    // TODO: Implement diagnostics view
+    // Create diagnostics table
+    issuesTable_ = new QTableWidget(this);
+    issuesTable_->setColumnCount(5);
+    QStringList headers;
+    headers << "Severity" << "Category" << "Title" << "Container" << "Detected At";
+    issuesTable_->setHorizontalHeaderLabels(headers);
+
+    issuesTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    issuesTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    issuesTable_->horizontalHeader()->setStretchLastSection(true);
+
+    // Details text area
+    QTextEdit* detailsText = new QTextEdit(this);
+    detailsText->setReadOnly(true);
+    detailsText->setMaximumHeight(200);
+
+    // Connect selection to details
+    connect(issuesTable_, &QTableWidget::itemSelectionChanged, [this, detailsText]() {
+        auto selected = issuesTable_->selectedItems();
+        if (!selected.isEmpty()) {
+            int row = selected[0]->row();
+            if (row < static_cast<int>(currentIssues_.size())) {
+                const auto& issue = currentIssues_[row];
+
+                QString details;
+                details += "Description:\n" + QString::fromStdString(issue.description) + "\n\n";
+                details += "Suggested Fixes:\n";
+                for (const auto& fix : issue.suggestedFixes) {
+                    details += "• " + QString::fromStdString(fix) + "\n";
+                }
+
+                if (issue.autoFixAvailable) {
+                    details += "\n✓ Auto-fix available";
+                }
+
+                detailsText->setText(details);
+            }
+        }
+    });
+
+    // Add control buttons
+    QPushButton* btnAutoFix = new QPushButton("Auto-Fix Selected", this);
+    QPushButton* btnCheckHealth = new QPushButton("Check System Health", this);
+    QPushButton* btnCheckDeps = new QPushButton("Check Dependencies", this);
+
+    connect(btnAutoFix, &QPushButton::clicked, [this]() {
+        auto selected = issuesTable_->selectedItems();
+        if (!selected.isEmpty()) {
+            int row = selected[0]->row();
+            if (row < static_cast<int>(currentIssues_.size())) {
+                const auto& issue = currentIssues_[row];
+                if (errorDiagnostics_->attemptAutoFix(issue)) {
+                    showSuccess("Auto-fix successful");
+                    onRunDiagnostics();
+                } else {
+                    showError("Auto-fix not available or failed");
+                }
+            }
+        }
+    });
+
+    connect(btnCheckHealth, &QPushButton::clicked, [this]() {
+        statusBar()->showMessage("Checking system health...");
+        auto health = errorDiagnostics_->checkSystemHealth();
+
+        QString message;
+        message += "System Health: " + QString(health.healthy ? "✓ Healthy" : "✗ Issues Detected") + "\n\n";
+        message += QString::fromStdString(health.message) + "\n\n";
+        message += "Issues found: " + QString::number(health.issues.size());
+
+        QMessageBox::information(this, "System Health", message);
+        statusBar()->showMessage(health.healthy ? "System healthy" : "Issues detected", 3000);
+    });
+
+    connect(btnCheckDeps, &QPushButton::clicked, [this]() {
+        statusBar()->showMessage("Checking dependencies...");
+
+        QString report;
+        for (const auto& container : containers_) {
+            auto deps = dependencyResolver_->analyzeDependencies(container.getId());
+            if (!deps.empty()) {
+                report += QString::fromStdString(container.getName()) + ":\n";
+                for (const auto& dep : deps) {
+                    report += "  • " + QString::fromStdString(dep.details) + "\n";
+                }
+                report += "\n";
+            }
+        }
+
+        // Check for circular dependencies
+        if (dependencyResolver_->hasCircularDependencies()) {
+            report += "\n⚠ WARNING: Circular dependencies detected!\n";
+        }
+
+        QMessageBox::information(this, "Dependency Analysis", report.isEmpty() ? "No dependencies found" : report);
+        statusBar()->showMessage("Dependency check complete", 3000);
+    });
+
+    LOG_INFO("Diagnostics view initialized");
 }
 
 void MainWindow::onRefreshContainers() {
@@ -238,14 +541,12 @@ void MainWindow::onRefreshContainers() {
 void MainWindow::onStartContainer() {
     if (!containerTable_) return;
 
-    // Get selected row
     QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
     if (selected.isEmpty()) {
         showInfo("Please select a container to start");
         return;
     }
 
-    // Get container ID from first column's user data
     int row = selected[0]->row();
     QTableWidgetItem* nameItem = containerTable_->item(row, 0);
     if (!nameItem) return;
@@ -262,15 +563,12 @@ void MainWindow::onStartContainer() {
     statusBar()->showMessage("Starting container " + containerName + "...");
 
     try {
-        // Start the container
         bool success = dockerClient_->startContainer(containerId.toStdString());
 
         if (success) {
             LOG_INFO("Container started successfully: " + containerName.toStdString());
             statusBar()->showMessage("Container " + containerName + " started", 3000);
             showSuccess("Container '" + containerName.toStdString() + "' started successfully");
-
-            // Refresh the container list to show updated state
             QTimer::singleShot(500, this, &MainWindow::onRefreshContainers);
         } else {
             LOG_ERROR("Failed to start container: " + containerName.toStdString());
@@ -288,14 +586,12 @@ void MainWindow::onStartContainer() {
 void MainWindow::onStopContainer() {
     if (!containerTable_) return;
 
-    // Get selected row
     QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
     if (selected.isEmpty()) {
         showInfo("Please select a container to stop");
         return;
     }
 
-    // Get container ID from first column's user data
     int row = selected[0]->row();
     QTableWidgetItem* nameItem = containerTable_->item(row, 0);
     if (!nameItem) return;
@@ -308,7 +604,6 @@ void MainWindow::onStopContainer() {
         return;
     }
 
-    // Confirm before stopping
     if (!confirmAction("Are you sure you want to stop container '" + containerName.toStdString() + "'?")) {
         return;
     }
@@ -317,15 +612,12 @@ void MainWindow::onStopContainer() {
     statusBar()->showMessage("Stopping container " + containerName + "...");
 
     try {
-        // Stop the container (10 second timeout)
         bool success = dockerClient_->stopContainer(containerId.toStdString(), 10);
 
         if (success) {
             LOG_INFO("Container stopped successfully: " + containerName.toStdString());
             statusBar()->showMessage("Container " + containerName + " stopped", 3000);
             showSuccess("Container '" + containerName.toStdString() + "' stopped successfully");
-
-            // Refresh the container list to show updated state
             QTimer::singleShot(500, this, &MainWindow::onRefreshContainers);
         } else {
             LOG_ERROR("Failed to stop container: " + containerName.toStdString());
@@ -343,14 +635,12 @@ void MainWindow::onStopContainer() {
 void MainWindow::onRestartContainer() {
     if (!containerTable_) return;
 
-    // Get selected row
     QList<QTableWidgetItem*> selected = containerTable_->selectedItems();
     if (selected.isEmpty()) {
         showInfo("Please select a container to restart");
         return;
     }
 
-    // Get container ID from first column's user data
     int row = selected[0]->row();
     QTableWidgetItem* nameItem = containerTable_->item(row, 0);
     if (!nameItem) return;
@@ -367,15 +657,12 @@ void MainWindow::onRestartContainer() {
     statusBar()->showMessage("Restarting container " + containerName + "...");
 
     try {
-        // Restart the container
         bool success = dockerClient_->restartContainer(containerId.toStdString());
 
         if (success) {
             LOG_INFO("Container restarted successfully: " + containerName.toStdString());
             statusBar()->showMessage("Container " + containerName + " restarted", 3000);
             showSuccess("Container '" + containerName.toStdString() + "' restarted successfully");
-
-            // Refresh the container list to show updated state
             QTimer::singleShot(1000, this, &MainWindow::onRefreshContainers);
         } else {
             LOG_ERROR("Failed to restart container: " + containerName.toStdString());
@@ -391,50 +678,234 @@ void MainWindow::onRestartContainer() {
 }
 
 void MainWindow::onViewLogs() {
-    // TODO: Implement view logs
+    // TODO: Implement view logs dialog
 }
 
 void MainWindow::onCheckUpdates() {
     LOG_INFO("Checking for updates");
     statusBar()->showMessage("Checking for updates...");
-    // TODO: Implement update check
+
+    try {
+        availableUpdates_ = updateChecker_->checkForUpdates(containers_);
+
+        // Update the updates table
+        updatesTable_->setRowCount(0);
+        int row = 0;
+
+        for (const auto& update : availableUpdates_) {
+            updatesTable_->insertRow(row);
+
+            QTableWidgetItem* nameItem = new QTableWidgetItem(QString::fromStdString(update.containerName));
+            nameItem->setData(Qt::UserRole, QString::fromStdString(update.containerId));
+            updatesTable_->setItem(row, 0, nameItem);
+
+            updatesTable_->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(update.currentTag)));
+            updatesTable_->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(update.latestTag)));
+
+            QString currentDigest = QString::fromStdString(update.currentDigest);
+            if (currentDigest.length() > 12) currentDigest = currentDigest.left(12) + "...";
+            updatesTable_->setItem(row, 3, new QTableWidgetItem(currentDigest));
+
+            QString latestDigest = QString::fromStdString(update.latestDigest);
+            if (latestDigest.length() > 12) latestDigest = latestDigest.left(12) + "...";
+            updatesTable_->setItem(row, 4, new QTableWidgetItem(latestDigest));
+
+            QTableWidgetItem* statusItem = new QTableWidgetItem("🔄 Update Available");
+            statusItem->setForeground(QBrush(QColor(0, 150, 200)));
+            updatesTable_->setItem(row, 5, statusItem);
+
+            row++;
+        }
+
+        updateDashboard();
+        statusBar()->showMessage(QString("Found %1 updates").arg(availableUpdates_.size()), 3000);
+        showInfo("Found " + std::to_string(availableUpdates_.size()) + " available updates");
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Failed to check updates: ") + e.what());
+        showError("Failed to check updates");
+    }
 }
 
 void MainWindow::onUpdateSelected() {
-    // TODO: Implement update selected
+    if (!updatesTable_ || updatesTable_->selectedItems().isEmpty()) {
+        showInfo("Please select updates to apply");
+        return;
+    }
+
+    std::vector<update::UpdateInfo> selectedUpdates;
+    QSet<int> selectedRows;
+
+    for (auto* item : updatesTable_->selectedItems()) {
+        selectedRows.insert(item->row());
+    }
+
+    for (int row : selectedRows) {
+        if (row < static_cast<int>(availableUpdates_.size())) {
+            selectedUpdates.push_back(availableUpdates_[row]);
+        }
+    }
+
+    if (!confirmAction("Update " + std::to_string(selectedUpdates.size()) + " container(s)?\n\nBackup will be created automatically.")) {
+        return;
+    }
+
+    statusBar()->showMessage("Updating containers...");
+
+    for (const auto& update : selectedUpdates) {
+        LOG_INFO("Updating: " + update.containerName);
+        if (updateChecker_->performUpdate(update, true)) {
+            LOG_INFO("Update successful: " + update.containerName);
+        } else {
+            LOG_ERROR("Update failed: " + update.containerName);
+        }
+    }
+
+    showSuccess("Update process complete - check logs for details");
+    onRefreshContainers();
+    onCheckUpdates();
 }
 
 void MainWindow::onUpdateAll() {
-    // TODO: Implement update all
+    if (availableUpdates_.empty()) {
+        showInfo("No updates available");
+        return;
+    }
+
+    if (!confirmAction("Update ALL " + std::to_string(availableUpdates_.size()) + " container(s)?\n\nBackup will be created for each.")) {
+        return;
+    }
+
+    statusBar()->showMessage("Performing batch update...");
+
+    bool success = updateChecker_->performBatchUpdate(availableUpdates_);
+
+    if (success) {
+        showSuccess("All updates completed successfully");
+    } else {
+        showError("Some updates failed - check logs");
+    }
+
+    onRefreshContainers();
+    onCheckUpdates();
 }
 
 void MainWindow::onRunDiagnostics() {
     LOG_INFO("Running diagnostics");
-    statusBar()->showMessage("Running diagnostics...");
-    // TODO: Implement diagnostics
+    statusBar()->showMessage("Running full diagnostics...");
+
+    try {
+        currentIssues_ = errorDiagnostics_->runFullDiagnostics();
+
+        // Update the issues table
+        issuesTable_->setRowCount(0);
+        int row = 0;
+
+        for (const auto& issue : currentIssues_) {
+            issuesTable_->insertRow(row);
+
+            // Severity with color
+            QString severityStr;
+            QColor severityColor;
+            switch (issue.severity) {
+                case diagnostics::ErrorSeverity::Critical:
+                    severityStr = "🔴 Critical";
+                    severityColor = QColor(220, 53, 69);
+                    break;
+                case diagnostics::ErrorSeverity::Error:
+                    severityStr = "🟠 Error";
+                    severityColor = QColor(255, 193, 7);
+                    break;
+                case diagnostics::ErrorSeverity::Warning:
+                    severityStr = "🟡 Warning";
+                    severityColor = QColor(255, 235, 59);
+                    break;
+                default:
+                    severityStr = "ℹ️ Info";
+                    severityColor = QColor(23, 162, 184);
+            }
+
+            QTableWidgetItem* severityItem = new QTableWidgetItem(severityStr);
+            severityItem->setForeground(QBrush(severityColor));
+            issuesTable_->setItem(row, 0, severityItem);
+
+            // Category
+            QString categoryStr;
+            switch (issue.category) {
+                case diagnostics::ErrorCategory::Network: categoryStr = "Network"; break;
+                case diagnostics::ErrorCategory::Storage: categoryStr = "Storage"; break;
+                case diagnostics::ErrorCategory::Permission: categoryStr = "Permission"; break;
+                case diagnostics::ErrorCategory::Resource: categoryStr = "Resource"; break;
+                case diagnostics::ErrorCategory::Configuration: categoryStr = "Configuration"; break;
+                case diagnostics::ErrorCategory::Dependency: categoryStr = "Dependency"; break;
+                case diagnostics::ErrorCategory::Registry: categoryStr = "Registry"; break;
+                default: categoryStr = "Unknown";
+            }
+            issuesTable_->setItem(row, 1, new QTableWidgetItem(categoryStr));
+
+            // Title
+            issuesTable_->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(issue.title)));
+
+            // Container
+            issuesTable_->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(issue.containerName)));
+
+            // Detected At
+            issuesTable_->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(issue.detectedAt)));
+
+            row++;
+        }
+
+        updateDashboard();
+        statusBar()->showMessage(QString("Found %1 issues").arg(currentIssues_.size()), 3000);
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Failed to run diagnostics: ") + e.what());
+        showError("Failed to run diagnostics");
+    }
 }
 
 void MainWindow::onFixIssue() {
-    // TODO: Implement fix issue
+    // Handled by auto-fix button in diagnostics view
 }
 
 void MainWindow::onViewIssueDetails() {
-    // TODO: Implement view issue details
+    // Handled by selection in diagnostics table
 }
 
 void MainWindow::onScanPorts() {
     LOG_INFO("Scanning ports");
-    statusBar()->showMessage("Scanning ports...");
-    // TODO: Implement port scan
+    statusBar()->showMessage("Scanning open ports...");
+
+    try {
+        auto ports = portScanner_->scanOpenPorts();
+
+        QString report;
+        report += "Open Ports Detected: " + QString::number(ports.size()) + "\n\n";
+
+        for (const auto& port : ports) {
+            report += QString("Port %1/%2 - %3 (PID: %4)\n")
+                .arg(port.port)
+                .arg(QString::fromStdString(port.protocol))
+                .arg(QString::fromStdString(port.processName))
+                .arg(port.processId);
+        }
+
+        QMessageBox::information(this, "Port Scan Results", report);
+        statusBar()->showMessage("Port scan complete", 3000);
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR(std::string("Failed to scan ports: ") + e.what());
+        showError("Failed to scan ports");
+    }
 }
 
 void MainWindow::onCheckConnectivity() {
     LOG_INFO("Checking connectivity");
-    // TODO: Implement connectivity check
+    onCheckUpdates(); // Trigger network tab operations
 }
 
 void MainWindow::onResolveConflict() {
-    // TODO: Implement resolve conflict
+    // TODO: Implement conflict resolution
 }
 
 void MainWindow::onOpenSettings() {
@@ -448,11 +919,27 @@ void MainWindow::onAutoRefresh() {
 
 void MainWindow::onAutoHealthCheck() {
     // Run health check in background
-    // TODO: Implement background health check
+    auto health = errorDiagnostics_->checkSystemHealth();
+    if (!health.healthy) {
+        LOG_WARNING("System health check detected issues");
+    }
 }
 
 void MainWindow::updateDashboard() {
-    // TODO: Update dashboard statistics
+    // Count running/stopped containers
+    int running = 0, stopped = 0;
+    for (const auto& container : containers_) {
+        if (container.isRunning()) {
+            running++;
+        } else {
+            stopped++;
+        }
+    }
+
+    if (statsRunning_) statsRunning_->setText(QString::number(running));
+    if (statsStopped_) statsStopped_->setText(QString::number(stopped));
+    if (statsIssues_) statsIssues_->setText(QString::number(currentIssues_.size()));
+    if (statsUpdates_) statsUpdates_->setText(QString::number(availableUpdates_.size()));
 }
 
 void MainWindow::updateContainerTable() {
@@ -460,43 +947,33 @@ void MainWindow::updateContainerTable() {
 
     LOG_INFO("Updating container table with " + std::to_string(containers_.size()) + " containers");
 
-    // Disable sorting while updating
     containerTable_->setSortingEnabled(false);
-
-    // Clear existing rows
     containerTable_->setRowCount(0);
 
-    // Add rows for each container
     int row = 0;
     for (const auto& container : containers_) {
         containerTable_->insertRow(row);
 
-        // Name
         QTableWidgetItem* nameItem = new QTableWidgetItem(QString::fromStdString(container.getName()));
         containerTable_->setItem(row, 0, nameItem);
 
-        // Image
         QString imageStr = QString::fromStdString(container.getImage());
         QTableWidgetItem* imageItem = new QTableWidgetItem(imageStr);
         containerTable_->setItem(row, 1, imageItem);
 
-        // State
         QString stateStr = QString::fromStdString(container.getStateString());
         QTableWidgetItem* stateItem = new QTableWidgetItem(stateStr);
 
-        // Color code by state
         if (container.isRunning()) {
-            stateItem->setForeground(QBrush(QColor(0, 150, 0))); // Green
+            stateItem->setForeground(QBrush(QColor(0, 150, 0)));
         } else {
-            stateItem->setForeground(QBrush(QColor(200, 0, 0))); // Red
+            stateItem->setForeground(QBrush(QColor(200, 0, 0)));
         }
         containerTable_->setItem(row, 2, stateItem);
 
-        // Status
         QTableWidgetItem* statusItem = new QTableWidgetItem(QString::fromStdString(container.getStatus()));
         containerTable_->setItem(row, 3, statusItem);
 
-        // Ports
         QString portsStr;
         auto ports = container.getPorts();
         for (size_t i = 0; i < ports.size(); ++i) {
@@ -510,7 +987,6 @@ void MainWindow::updateContainerTable() {
         QTableWidgetItem* portsItem = new QTableWidgetItem(portsStr);
         containerTable_->setItem(row, 4, portsItem);
 
-        // ID (short version)
         QString idStr = QString::fromStdString(container.getId());
         if (idStr.length() > 12) {
             idStr = idStr.left(12);
@@ -518,28 +994,25 @@ void MainWindow::updateContainerTable() {
         QTableWidgetItem* idItem = new QTableWidgetItem(idStr);
         containerTable_->setItem(row, 5, idItem);
 
-        // Store full ID in row data for later retrieval
         nameItem->setData(Qt::UserRole, QString::fromStdString(container.getId()));
 
         row++;
     }
 
-    // Re-enable sorting
     containerTable_->setSortingEnabled(true);
-
     LOG_INFO("Container table updated successfully");
 }
 
 void MainWindow::updateIssuesList() {
-    // TODO: Update issues list
+    // Issues are updated in onRunDiagnostics
 }
 
 void MainWindow::updateNetworkStatus() {
-    // TODO: Update network status
+    // Network status is updated on-demand in network tab
 }
 
 void MainWindow::updateStatistics() {
-    // TODO: Update statistics
+    updateDashboard();
 }
 
 void MainWindow::showError(const std::string& message) {

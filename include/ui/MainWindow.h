@@ -7,7 +7,9 @@
 #include <QTimer>
 #include <memory>
 #include "../docker/ContainerManager.h"
+#include "../docker/DependencyResolver.h"
 #include "../network/PortScanner.h"
+#include "../network/NetworkDiagnostics.h"
 #include "../update/UpdateChecker.h"
 #include "../diagnostics/ErrorDiagnostics.h"
 #include "../storage/Database.h"
@@ -78,6 +80,7 @@ private:
     // Core components
     std::shared_ptr<docker::DockerClient> dockerClient_;
     std::shared_ptr<docker::ContainerManager> containerManager_;
+    std::shared_ptr<docker::DependencyResolver> dependencyResolver_;
     std::shared_ptr<network::PortScanner> portScanner_;
     std::shared_ptr<network::NetworkDiagnostics> networkDiagnostics_;
     std::shared_ptr<update::UpdateChecker> updateChecker_;
