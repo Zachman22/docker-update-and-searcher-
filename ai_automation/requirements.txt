@@ -1,0 +1,8 @@
+# AI Automation Requirements for Docker Homelab Manager
+
+# Core AI functionality
+anthropic>=0.40.0
+
+# Optional: Enhanced features
+requests>=2.31.0
+python-dotenv>=1.0.0

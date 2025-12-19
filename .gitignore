@@ -67,3 +67,20 @@ desktop.ini
 *.rpm
 *.tar.gz
 *.zip
+*.AppImage
+*.dmg
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+venv/
+env/
+.venv/
+
+# AI Automation
+.env
+ai_automation/features_log.json
+dist/

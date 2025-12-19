@@ -28,6 +28,25 @@ A powerful C++17 desktop application for managing Docker containers in homelab e
 - **Safe Restart Logic** - Automatically restart containers or Docker daemon when needed
 - **Local Storage** - SQLite-based configuration and history tracking
 
+### 🤖 AI Automation Features (NEW!)
+
+This project includes an advanced AI-powered automation system that accelerates development:
+
+- **AI Feature Generator** - Uses Claude AI to automatically analyze the codebase and implement new features
+- **Automated TODO Management** - Scans code for TODOs and maintains organized task lists
+- **Continuous Integration** - GitHub Actions automatically builds executables for Windows, Linux, and macOS
+- **Cross-Platform Builds** - Automated packaging (EXE, AppImage, DMG) with artifact uploads
+- **Smart Prioritization** - AI determines optimal feature implementation order based on dependencies and impact
+
+**Benefits:**
+- 🚀 Faster development with AI-assisted coding
+- 📋 Always up-to-date task tracking
+- 🔨 Automated multi-platform builds
+- 📦 Ready-to-use executables for all platforms
+- 🔄 Continuous feature delivery
+
+See [`ai_automation/README.md`](ai_automation/README.md) for detailed documentation on using the AI automation system.
+
 ## Technology Stack
 
 - **Language**: C++17
@@ -81,6 +100,48 @@ cmake --build . --config Release
 ./DockerHomelabManager  # Linux/macOS
 .\Release\DockerHomelabManager.exe  # Windows
 ```
+
+## Using AI Automation
+
+The project includes powerful AI automation tools for development. See full documentation in [`ai_automation/README.md`](ai_automation/README.md).
+
+### Quick Start
+
+```bash
+# Install Python dependencies
+pip install -r ai_automation/requirements.txt
+
+# Set up your Anthropic API key (optional, for AI features)
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Generate TODO list from codebase
+python ai_automation/todo_manager.py --update
+
+# Run automated build
+python ai_automation/build_automation.py
+
+# AI-powered feature generation (requires API key)
+python ai_automation/feature_generator.py --max-features 5
+```
+
+### Continuous Integration
+
+The project includes GitHub Actions workflows that automatically:
+- Build executables for Windows, Linux, and macOS
+- Package applications (ZIP, AppImage, DMG)
+- Run tests and quality checks
+- Create GitHub releases with downloadable binaries
+- Update TODO list with build status
+
+Workflows run automatically on push to `main` or `claude/*` branches.
+
+### Available Automation Tools
+
+| Tool | Description | Usage |
+|------|-------------|-------|
+| **feature_generator.py** | AI-powered feature implementation | `--max-features 10` |
+| **todo_manager.py** | TODO scanning and prioritization | `--update --stats` |
+| **build_automation.py** | Cross-platform build system | `--no-clean --debug` |
 
 ## Configuration
 
