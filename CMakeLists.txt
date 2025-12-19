@@ -38,6 +38,7 @@ set(SOURCES
     src/ui/MainWindow.cpp
     src/docker/DockerClient.cpp
     src/docker/ContainerManager.cpp
+    src/docker/DependencyResolver.cpp
     src/network/PortScanner.cpp
     src/network/NetworkDiagnostics.cpp
     src/storage/Database.cpp
@@ -52,6 +53,7 @@ set(HEADERS
     include/docker/DockerClient.h
     include/docker/ContainerManager.h
     include/docker/Container.h
+    include/docker/DependencyResolver.h
     include/network/PortScanner.h
     include/network/NetworkDiagnostics.h
     include/storage/Database.h
