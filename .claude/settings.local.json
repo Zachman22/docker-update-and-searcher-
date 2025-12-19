@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git commit -m \"$(cat <<''EOF''\nImplement core Docker API and Port Scanning functionality\n\nMajor implementations in this release:\n\nDocker API Client (COMPLETE):\n- Full libcurl-based REST API client for Docker daemon\n- Cross-platform socket support (Unix socket for Linux/macOS, named pipe for Windows)\n- Complete container lifecycle: list, start, stop, restart, remove\n- Image operations: pull, list, remove, exists check\n- Network and volume management\n- Registry authentication support\n- Comprehensive JSON parsing with nlohmann/json\n- Robust error handling and logging\n\nPort Scanner (COMPLETE):\n- Platform-specific implementations for Windows and Linux\n- Windows: Uses iphlpapi.h (GetExtendedTcpTable/GetExtendedUdpTable)\n- Linux: Parses /proc/net/tcp and /proc/net/udp\n- Process name resolution for port owners\n- Port conflict detection algorithm\n- Intelligent alternative port suggestion\n- Available port finder with range support\n- Groups ports by container/process\n\nBuild System Enhancements:\n- CMake FetchContent for automatic dependency management\n- nlohmann/json v3.11.3 integration\n- Platform-specific library linking (ws2_32, iphlpapi, pthread)\n- Cross-platform compiler support\n\nInfrastructure:\n- Build status documentation\n- External dependencies management\n- Improved error handling throughout\n\nThis release provides a solid foundation for container management\nand network diagnostics. The Docker API client can fully communicate\nwith Docker daemon, and the port scanner can detect conflicts before\nthey happen - the core value proposition of this application.\n\nNext priorities: Update Checker, SQLite Database, GUI implementation\nEOF\n)\")",
       "Bash(git push:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
