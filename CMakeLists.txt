@@ -7,6 +7,16 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# FetchContent for dependencies
+include(FetchContent)
+
+# Fetch nlohmann/json
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Find Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 
@@ -60,7 +70,15 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Network
     SQLite::SQLite3
     CURL::libcurl
+    nlohmann_json::nlohmann_json
 )
+
+# Platform-specific libraries
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} ws2_32 iphlpapi)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} pthread)
+endif()
 
 # Installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
