@@ -1,0 +1,69 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE specific files
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+
+# Compiled Object files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+DockerHomelabManager
+
+# Qt specific
+*.qrc.depends
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Database files (development)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
