@@ -17,6 +17,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# Fetch yaml-cpp
+FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG yaml-cpp-0.7.0
+)
+FetchContent_MakeAvailable(yaml-cpp)
+
 # Find Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 
@@ -36,9 +44,13 @@ include_directories(
 set(SOURCES
     src/main.cpp
     src/ui/MainWindow.cpp
+    src/ui/LogsViewerDialog.cpp
     src/docker/DockerClient.cpp
     src/docker/ContainerManager.cpp
     src/docker/DependencyResolver.cpp
+    src/compose/ComposeParser.cpp
+    src/compose/ComposeStack.cpp
+    src/registry/RegistryManager.cpp
     src/network/PortScanner.cpp
     src/network/NetworkDiagnostics.cpp
     src/storage/Database.cpp
@@ -50,10 +62,15 @@ set(SOURCES
 # Header files
 set(HEADERS
     include/ui/MainWindow.h
+    include/ui/LogsViewerDialog.h
+    include/ui/SettingsDialog.h
     include/docker/DockerClient.h
     include/docker/ContainerManager.h
     include/docker/Container.h
     include/docker/DependencyResolver.h
+    include/compose/ComposeParser.h
+    include/compose/ComposeStack.h
+    include/registry/RegistryManager.h
     include/network/PortScanner.h
     include/network/NetworkDiagnostics.h
     include/storage/Database.h
@@ -73,6 +90,7 @@ target_link_libraries(${PROJECT_NAME}
     unofficial::sqlite3::sqlite3
     CURL::libcurl
     nlohmann_json::nlohmann_json
+    yaml-cpp
 )
 
 # Platform-specific libraries
