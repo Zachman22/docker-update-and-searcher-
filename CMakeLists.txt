@@ -45,6 +45,8 @@ set(SOURCES
     src/main.cpp
     src/ui/MainWindow.cpp
     src/ui/LogsViewerDialog.cpp
+    src/ui/ContainerWizard.cpp
+    src/ui/ThemeManager.cpp
     src/docker/DockerClient.cpp
     src/docker/ContainerManager.cpp
     src/docker/DependencyResolver.cpp
@@ -64,6 +66,10 @@ set(HEADERS
     include/ui/MainWindow.h
     include/ui/LogsViewerDialog.h
     include/ui/SettingsDialog.h
+    include/ui/ContainerWizard.h
+    include/ui/StackWizard.h
+    include/ui/ThemeManager.h
+    include/ui/RegistryDialog.h
     include/docker/DockerClient.h
     include/docker/ContainerManager.h
     include/docker/Container.h
@@ -76,6 +82,7 @@ set(HEADERS
     include/storage/Database.h
     include/update/UpdateChecker.h
     include/diagnostics/ErrorDiagnostics.h
+    include/diagnostics/DiagnosticReporter.h
     include/utils/Logger.h
 )
 
