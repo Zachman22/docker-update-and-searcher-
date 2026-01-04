@@ -1,0 +1,190 @@
+================================================================================
+  Docker Homelab Manager v0.4.0 - Windows Quick Start Guide
+================================================================================
+
+FASTEST WAY TO BUILD ON WINDOWS
+================================
+
+STEP 1: Install vcpkg (One-time setup)
+---------------------------------------
+Open PowerShell AS ADMINISTRATOR and run:
+
+    cd C:\
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    .\bootstrap-vcpkg.bat
+
+Wait for it to complete (about 5 minutes).
+
+
+STEP 2: Install Dependencies (One-time setup)
+----------------------------------------------
+Still in PowerShell as Administrator:
+
+    .\vcpkg install qt6-base:x64-windows
+    .\vcpkg install qt6-network:x64-windows
+    .\vcpkg install sqlite3:x64-windows
+    .\vcpkg install curl:x64-windows
+
+⚠️  WARNING: This will take 30-60 minutes (Qt6 is large).
+    Go grab a coffee! ☕
+
+
+STEP 3: Build the Application
+------------------------------
+Navigate to your project folder:
+
+    cd C:\Path\To\docker-update-and-searcher-
+
+Run the automated build script:
+
+    .\build-windows.ps1
+
+OR build manually:
+
+    cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+    cmake --build build --config Release --parallel
+
+
+STEP 4: Run the Application
+----------------------------
+    cd build\Release
+    .\DockerHomelabManager.exe
+
+
+THAT'S IT! 🎉
+==============
+
+--------------------------------------------------------------------------------
+
+TROUBLESHOOTING
+===============
+
+Problem: "vcpkg: command not found"
+Solution: Make sure you're in C:\vcpkg directory
+         Or add C:\vcpkg to your PATH
+
+Problem: "Qt6 not found"
+Solution: Wait for vcpkg installation to complete fully
+         Check: C:\vcpkg\vcpkg list | Select-String "qt6"
+
+Problem: "CMake not found"
+Solution: Download from https://cmake.org/download/
+         Or: choco install cmake
+
+Problem: Missing DLLs when running
+Solution: cd build\Release
+         C:\vcpkg\installed\x64-windows\tools\qt6\bin\windeployqt.exe DockerHomelabManager.exe
+
+Problem: Build script won't run
+Solution: PowerShell may block scripts. Run:
+         Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+--------------------------------------------------------------------------------
+
+ALTERNATIVE: Manual Method
+==========================
+
+If you prefer to install Qt manually:
+
+1. Download Qt Online Installer:
+   https://www.qt.io/download-qt-installer
+
+2. Install Qt 6.6 or later (MSVC 2019 64-bit)
+
+3. Use vcpkg for other deps:
+   C:\vcpkg\vcpkg install sqlite3:x64-windows curl:x64-windows
+
+4. Build with Qt path:
+   cmake -B build -S . -DCMAKE_PREFIX_PATH=C:\Qt\6.6.0\msvc2019_64
+   cmake --build build --config Release
+
+--------------------------------------------------------------------------------
+
+WHAT YOU'RE BUILDING
+====================
+
+Docker Homelab Manager v0.4.0 includes:
+
+✅ Docker Compose stack management
+✅ Multi-registry support (Docker Hub, GHCR, Quay, GitLab, etc.)
+✅ Container creation wizard (8 pages)
+✅ Stack creation wizard (6 pages)
+✅ Dark mode theme
+✅ Advanced log viewer
+✅ Diagnostic report export (5 formats)
+✅ Registry configuration GUI
+✅ Full Docker API integration
+✅ Port scanning and conflict detection
+✅ Network diagnostics
+✅ Update checking
+
+Total: 29,000+ lines of C++17 code
+       22 major features
+       50 classes
+
+--------------------------------------------------------------------------------
+
+FILE LOCATIONS
+==============
+
+After successful build:
+
+Executable:       build\Release\DockerHomelabManager.exe
+Size:            ~15-25 MB
+Required DLLs:   Qt6Core.dll, Qt6Widgets.dll, Qt6Network.dll,
+                sqlite3.dll, libcurl.dll (auto-copied)
+
+--------------------------------------------------------------------------------
+
+BUILD TIMES
+===========
+
+First-time build:  45-80 minutes (mostly downloading Qt6)
+Subsequent builds: 5-10 minutes
+Clean rebuild:     5-10 minutes
+
+--------------------------------------------------------------------------------
+
+CREATING A PORTABLE PACKAGE
+============================
+
+After building:
+
+    cd build\Release
+    Compress-Archive -Path * -DestinationPath ..\..\DockerHomelabManager-Windows-x64.zip
+
+You can then copy this ZIP to another Windows machine and run it without
+installing anything (except Visual C++ Runtime if needed).
+
+--------------------------------------------------------------------------------
+
+SYSTEM REQUIREMENTS
+===================
+
+Operating System:  Windows 10/11 (64-bit)
+RAM:              4 GB minimum, 8 GB recommended
+Disk Space:       ~5 GB for build tools + dependencies
+                 ~100 MB for built application
+Compiler:         Visual Studio 2019 or later
+                 (Community Edition is free)
+
+--------------------------------------------------------------------------------
+
+NEED MORE HELP?
+===============
+
+📖 Detailed Guide:    See WINDOWS_BUILD_GUIDE.md
+🔧 Build Script:      Run .\build-windows.ps1 -Help
+📊 Build Status:      See BUILD_STATUS_REPORT.md
+🚀 Release Notes:     See RELEASE_NOTES_v0.4.0.md
+🐛 Report Issues:     https://github.com/Zachman22/docker-update-and-searcher-/issues
+
+--------------------------------------------------------------------------------
+
+Version: 0.4.0
+Date: 2026-01-03
+Platform: Windows 10/11 64-bit
+Status: Ready to Build
+
+================================================================================
